@@ -1,12 +1,20 @@
 from PIL import Image, ImageSequence
-import sys
 import os
+import sys
 import time
+import getopt
 import rivalcfg
+import xprintidle
 
-filename = sys.argv[1]
-mouse = rivalcfg.get_first_mouse()
+VENDOR_ID = 0x1038
+PRODUCT_ID = 0x1700
+mouse = rivalcfg.get_mouse(VENDOR_ID, PRODUCT_ID)
 MAXX, MAXY = 36, 128
+
+
+blank = []
+for e in range(576):
+    blank.append(0x00)
 
 
 def isanimation(im):
@@ -48,35 +56,65 @@ def processpixelcolor(x, y, im):
 
 
 def processframe(x, y, im):
+    im = im.convert('1', dither=0)
     array = processpixelcolor(x, y, im)
     array = converttoinit(stringsplit(array, 8))
     return array
 
 
-def main():
+def main(argv):
+    filename = ""
+    delay = 30000
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "hi:d:")
+    except getopt.GetoptError as err:
+        print("riloader.py -i <image> -d <bool>")
+        sys.exit(2)
+    for opt, arg in opts:
+        if opt == "-h":
+            print("riloader.py -i <image> -d <bool")
+            sys.exit()
+        elif opt in "-i":
+            filename = arg
+        elif opt in "-d":
+            d = int(arg)
+            if d >= 1500 and d <= 600000:
+                delay = int(arg)
+            else:
+                print("delay must be greater than 1500 and less than 600000")
     if not os.path.exists(filename):
         raise Exception("File: %s does not exist." % filename)
-    im = Image.open(filename, "r")
-    y, x = im.size
-    imf = im.format
-    if imf != "GIF":
-        raise Exception("File: %s needs to be in gif format." % filename)
-    if y > MAXY or x > MAXX:
-        raise Exception("Image must be 128x36 pixel")
-    if not isanimation(im):
-        im = im.convert('1', dither=1)
-        array = processframe(x, y, im)
-        mouse.set_oled_image(array)
-    else:
-        while True:
-            for frame in ImageSequence.Iterator(im):
-                frame = frame.convert('1', dither=1)
-                array = processframe(x, y, frame)
-                mouse.set_oled_image(array)
-                duration = 1 / frame.info['duration']
-                #print (duration)
-                time.sleep(duration)
+    try:
+        im = Image.open(filename, "r")
+        y, x = im.size
+        imf = im.format
+        if imf != "GIF":
+            raise Exception("File: %s needs to be in gif format." % filename)
+        if y > MAXY or x > MAXX:
+            raise Exception("Image must be 128x36 pixel")
+        if not isanimation(im):
+            array = processframe(x, y, im)
+            mouse.send_oled_frame(array)
+        else:
+            while True:
+                try:
+                    for frame in ImageSequence.Iterator(im):
+                        if xprintidle.idle_time() < delay:
+                            array = processframe(x, y, frame)
+                            mouse.send_oled_frame(array)
+                            duration = 1 / frame.info["duration"]
+                            #print(duration,xprintidle.idle_time())
+                            time.sleep(duration)
+                        else:
+                            #print(time.time(), xprintidle.idle_time())
+                            mouse.send_oled_frame(blank)
+                            break
+                except (KeyboardInterrupt, SystemExit):
+                    mouse.send_oled_frame(blank)
+                    sys.exit(1)
+    except IOError:
+        raise Exception("File: %s is not a valid image." % filename)
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
