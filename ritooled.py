@@ -2,6 +2,7 @@ from PIL import Image, ImageSequence
 import os
 import sys
 import time
+import numpy
 import getopt
 import rivalcfg
 import xprintidle
@@ -40,26 +41,12 @@ def converttoinit(table):
     return output
 
 
-def processpixelcolor(x, y, im):
-    index = 1
-    array = ""
-    for px in range(x):
-        for py in range(y):
-            pxl = im.getpixel((py, px))
-            if pxl == 255:
-                pxl = "1"
-            else:
-                pxl = "0"
-            array = array + pxl
-            index = index + 1
-    return array
-
-
 def processframe(x, y, im):
     im = im.convert('1', dither=0)
-    array = processpixelcolor(x, y, im)
-    array = converttoinit(stringsplit(array, 8))
-    return array
+    nparray = numpy.asarray(im, dtype=int)
+    nparray = numpy.packbits(nparray,axis=-1)
+    nparray = nparray.flatten("A")
+    return nparray
 
 
 def main(argv):
@@ -68,11 +55,11 @@ def main(argv):
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hi:d:")
     except getopt.GetoptError as err:
-        print("riloader.py -i <image> -d <bool>")
+        print("ritooled.py -i <image> -d <bool>")
         sys.exit(2)
     for opt, arg in opts:
         if opt == "-h":
-            print("riloader.py -i <image> -d <bool")
+            print("ritooled.py -i <image> -d <bool")
             sys.exit()
         elif opt in "-i":
             filename = arg
@@ -96,19 +83,22 @@ def main(argv):
             array = processframe(x, y, im)
             mouse.send_oled_frame(array)
         else:
+            wait = 3
             while True:
                 try:
+                    bd = True
                     for frame in ImageSequence.Iterator(im):
                         if xprintidle.idle_time() < delay:
+                            db = True
                             array = processframe(x, y, frame)
                             mouse.send_oled_frame(array)
                             duration = 1 / frame.info["duration"]
-                            #print(duration,xprintidle.idle_time())
-                            time.sleep(duration)
+                            time.sleep(duration*1.5)
                         else:
-                            #print(time.time(), xprintidle.idle_time())
-                            mouse.send_oled_frame(blank)
-                            break
+                            while db:
+                                mouse.send_oled_frame(blank)
+                                db = False
+                            time.sleep(1)
                 except (KeyboardInterrupt, SystemExit):
                     mouse.send_oled_frame(blank)
                     sys.exit(1)
