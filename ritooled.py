@@ -4,18 +4,12 @@ import sys
 import time
 import numpy
 import getopt
-import rivalcfg
 import xprintidle
+import rivaloled
 
 VENDOR_ID = 0x1038
 PRODUCT_ID = 0x1700
-mouse = rivalcfg.get_mouse(VENDOR_ID, PRODUCT_ID)
 MAXX, MAXY = 36, 128
-
-
-blank = []
-for e in range(576):
-    blank.append(0x00)
 
 
 def isanimation(im):
@@ -27,26 +21,11 @@ def isanimation(im):
         return True
 
 
-def stringsplit(string, length):
-    split_strings = []
-    for index in range(0, len(string), length):
-        split_strings.append(string[index : index + length])
-    return split_strings
-
-
-def converttoinit(table):
-    output = []
-    for l in range(len(table)):
-        output.append(int(table[l], 2))
-    return output
-
-
-def processframe(x, y, im):
+def processandsend(im):
     im = im.convert('1', dither=0)
-    nparray = numpy.asarray(im, dtype=int)
-    nparray = numpy.packbits(nparray,axis=-1)
-    nparray = nparray.flatten("A")
-    return nparray
+    frame = rivaloled.imagetobits(im)
+    canvas = rivaloled.bitstobytes(frame)
+    rivaloled.sendframe(canvas)
 
 
 def main(argv):
@@ -80,8 +59,7 @@ def main(argv):
         if y > MAXY or x > MAXX:
             raise Exception("Image must be 128x36 pixel")
         if not isanimation(im):
-            array = processframe(x, y, im)
-            mouse.send_oled_frame(array)
+            processandsend(im)
         else:
             wait = 3
             while True:
@@ -90,13 +68,12 @@ def main(argv):
                     for frame in ImageSequence.Iterator(im):
                         if xprintidle.idle_time() < delay:
                             db = True
-                            array = processframe(x, y, frame)
-                            mouse.send_oled_frame(array)
+                            processandsend(im)
                             duration = 1 / frame.info["duration"]
                             time.sleep(duration*1.5)
                         else:
                             while db:
-                                mouse.send_oled_frame(blank)
+                                rivaloled.send_blank_frame()
                                 db = False
                             time.sleep(1)
                 except (KeyboardInterrupt, SystemExit):

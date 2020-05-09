@@ -4,13 +4,10 @@ from PIL import Image
 from PIL import ImageFont
 from PIL import ImageDraw
 import sys
-import numpy as np
-import rivalcfg
+import numpy
+import rivaloled
 import time
 
-VENDOR_ID = 0x1038
-PRODUCT_ID = 0x1700
-mouse = rivalcfg.get_mouse(VENDOR_ID, PRODUCT_ID)
 MAXX, MAXY = 36, 128
 
 
@@ -24,21 +21,15 @@ def char_to_pixels(text, path, fontsize):
     image = Image.new('L', (w, h), 1)  
     draw = ImageDraw.Draw(image)
     draw.text((0, 0), text, font=font) 
-    arr = np.asarray(image)
-    arr = np.where(arr, 0, 1)
+    arr = numpy.asarray(image)
+    arr = numpy.where(arr, 0, 1)
     arr = arr[(arr != 0).any(axis=1)]
     return arr
 
 
-def displaytty(arr):
-    result = np.where(arr, '#', ' ')
-    print('\n'.join([''.join(row) for row in result]))
-
-
-def bitstobytes(array):
-    array = np.packbits(array,axis=-1)
-    array = array.flatten("A")
-    return array
+def processandsend(message):
+    canvas = rivaloled.bitstobytes(message)
+    rivaloled.sendframe(canvas)
 
 
 def growarray(arr):
@@ -63,7 +54,7 @@ def growarray(arr):
         else:
             xpadt = int(xpad + 1)
             xpadb = int(xpad - 0.5)
-    arr = np.pad(arr, ((xpadt, xpadb) , (ypadt, ypadb)), mode = 'constant', constant_values=(0, 0))
+    arr = numpy.pad(arr, ((xpadt, xpadb) , (ypadt, ypadb)), mode = 'constant', constant_values=(0, 0))
     #todo just copy array into the size i need
     return arr
 
@@ -74,20 +65,17 @@ def main(argv):
             c, 
             path='/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf', 
             fontsize=MAXX)
-        #displaytty(arr)
         message = growarray(arr)
         x, y = message.shape
         if y == 128:
-            frame=bitstobytes(message)
-            mouse.send_oled_frame(frame)
+            processandsend(message)
         else: 
             position = 1
             flip = 1
             while True:
                 x, y = message.shape
                 frame = message[0:, position:position+MAXY]
-                frame=bitstobytes(frame)
-                mouse.send_oled_frame(frame)
+                processandsend(frame)
                 position = position + flip
                 if position == y-MAXY:
                     flip = -1
