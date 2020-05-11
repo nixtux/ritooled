@@ -10,7 +10,6 @@ import time
 
 MAXX, MAXY = 36, 128
 
-
 def char_to_pixels(text, path, fontsize):
     """
     Based on https://stackoverflow.com/a/27753869/190597 (jsheperd)
@@ -28,8 +27,19 @@ def char_to_pixels(text, path, fontsize):
 
 
 def processandsend(message):
-    canvas = rivaloled.bitstobytes(message)
-    rivaloled.sendframe(canvas)
+    #canvas = rivaloled.bitstobytes(message)
+    rivaloled.sendframe(message)
+
+
+def imagetoarray(filename):
+    filename="cpu.png"
+    im = Image.open(filename, "r")
+    array = rivaloled.imagetobits(im)
+    return array
+    
+
+def stitcharray(a, b, axis):
+    pass
 
 
 def growarray(arr):
@@ -55,7 +65,6 @@ def growarray(arr):
             xpadt = int(xpad + 1)
             xpadb = int(xpad - 0.5)
     arr = numpy.pad(arr, ((xpadt, xpadb) , (ypadt, ypadb)), mode = 'constant', constant_values=(0, 0))
-    #todo just copy array into the size i need
     return arr
 
 
@@ -82,6 +91,7 @@ def main(argv):
                 if position == 1:
                     flip = 1
                 time.sleep(.05)
+
 
 if __name__ == "__main__":
     main(sys.argv[1:])

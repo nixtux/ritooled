@@ -1,33 +1,58 @@
+import xprintidle
 import rivalcfg
 import numpy
+import time
 import sys 
 
 
+#Set config for Rival 700
 VENDOR_ID = 0x1038
 PRODUCT_ID = 0x1700
-MAXX, MAXY = 36, 128
-
 mouse = rivalcfg.get_mouse(VENDOR_ID, PRODUCT_ID)
-blankframe = numpy.zeros((576, MAXY), dtype=int, order='C')
+
+#Set Old Screen Dims
+MAXX, MAXY = 36, 128
+blankframe = numpy.zeros((MAXX, MAXY), dtype=int, order='C')
+oldframes = numpy.zeros((MAXX, MAXY, 2), dtype=int, order='C')
+oldframe = blankframe
 
 
 def imagetobits(im):
+    #convert pil image to numpy array
     frame = numpy.asarray(im, dtype=int)
     return frame
 
 
-def bitstobytes(array):
+def _bitstobytes_(array):
+    #flatten array befire sending to rivalcfg
     array = numpy.packbits(array,axis=-1)
     array = array.flatten("A")
     return array
 
 
 def sendframe(frame):
-    mouse.send_oled_frame(frame)
+    global oldframe
+    if not numpy.array_equal(frame, oldframe):
+        frame = _bitstobytes_(frame)
+        mouse.send_oled_frame(frame)
+        oldframe = frame
 
 
-def sendblankframe(frame):
-    mouse.send_oled_frame(blankframe)
+def sendsquenece(frames, delay):
+    global oldframes
+    while not numpy.array_equal(frames, oldframes):
+        depth = frames.shape[2]
+        for d in range(depth):
+            if xprintidle.idle_time() < delay:
+                frame = frames[:,:,d]
+                sendframe(frame)
+            else:
+                sendblankframe()
+            time.sleep(.1) #10 fps
+
+
+def sendblankframe():
+    sendframe(blankframe)
 
 
 def main(frame):

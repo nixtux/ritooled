@@ -24,8 +24,7 @@ def isanimation(im):
 def processandsend(im):
     im = im.convert('1', dither=0)
     frame = rivaloled.imagetobits(im)
-    canvas = rivaloled.bitstobytes(frame)
-    rivaloled.sendframe(canvas)
+    rivaloled.sendframe(frame)
 
 
 def main(argv):
@@ -61,24 +60,18 @@ def main(argv):
         if not isanimation(im):
             processandsend(im)
         else:
-            wait = 3
-            while True:
-                try:
-                    bd = True
-                    for frame in ImageSequence.Iterator(im):
-                        if xprintidle.idle_time() < delay:
-                            db = True
-                            processandsend(im)
-                            duration = 1 / frame.info["duration"]
-                            time.sleep(duration*1.5)
-                        else:
-                            while db:
-                                rivaloled.send_blank_frame()
-                                db = False
-                            time.sleep(1)
-                except (KeyboardInterrupt, SystemExit):
-                    mouse.send_oled_frame(blank)
-                    sys.exit(1)
+            count = 1
+            try:
+                seq = []
+                for frame in ImageSequence.Iterator(im):
+                    im = frame.convert('1', dither=0)
+                    part = rivaloled.imagetobits(im)
+                    seq.append(part)
+                frames = numpy.dstack(seq)
+                rivaloled.sendsquenece(frames, delay)
+            except (KeyboardInterrupt, SystemExit):
+                rivaloled.sendblankframe()
+                sys.exit(1)
     except IOError:
         raise Exception("File: %s is not a valid image." % filename)
 

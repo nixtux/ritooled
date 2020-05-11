@@ -3,8 +3,7 @@ import numpy
 import time
 
 MAXX, MAXY = 36, 128
-blankcanvas = numpy.zeros((MAXX, MAXY), dtype=int, order='C')
-blankscreen = rivaloled.bitstobytes(blankcanvas)
+
 
 class Canvas:
     def __init__(self, canvas):
@@ -16,11 +15,9 @@ class Canvas:
 
 
     def drawcanvas(self):
-        rivaloled.sendframe(rivaloled.bitstobytes(self.canvas))
+        rivaloled.sendframe(self.canvas)
 
 
     def tick(self):
-        time.sleep(.05)
+        time.sleep(.1)
         self.canvas = numpy.zeros((MAXX, MAXY), dtype=int, order='C')
-        #rivaloled.sendframe(blankscreen)
-
