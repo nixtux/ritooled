@@ -9,6 +9,7 @@ import rivaloled
 import time
 
 MAXX, MAXY = 36, 128
+timeout = 60000
 
 def char_to_pixels(text, path, fontsize):
     """
@@ -24,11 +25,6 @@ def char_to_pixels(text, path, fontsize):
     arr = numpy.where(arr, 0, 1)
     arr = arr[(arr != 0).any(axis=1)]
     return arr
-
-
-def processandsend(message):
-    #canvas = rivaloled.bitstobytes(message)
-    rivaloled.sendframe(message)
 
 
 def imagetoarray(filename):
@@ -72,19 +68,21 @@ def main(argv):
     for c in argv:
         arr = char_to_pixels(
             c, 
-            path='/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf', 
+            #path='/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf', 
+            #path='/home/nixtux/.local/share/fonts/adip1.ttf', 
+            path='/home/nixtux/.local/share/fonts/YummyCupcakes.ttf', 
             fontsize=MAXX)
         message = growarray(arr)
         x, y = message.shape
         if y == 128:
-            processandsend(message)
+            rivaloled.sendframe(message, timeout)
         else: 
             position = 1
             flip = 1
             while True:
                 x, y = message.shape
                 frame = message[0:, position:position+MAXY]
-                processandsend(frame)
+                rivaloled.sendframe(frame, timeout)
                 position = position + flip
                 if position == y-MAXY:
                     flip = -1

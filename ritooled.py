@@ -1,10 +1,8 @@
 from PIL import Image, ImageSequence
 import os
 import sys
-import time
 import numpy
 import getopt
-import xprintidle
 import rivaloled
 
 VENDOR_ID = 0x1038
@@ -21,15 +19,15 @@ def isanimation(im):
         return True
 
 
-def processandsend(im):
+def processandsend(im, delay):
     im = im.convert('1', dither=0)
     frame = rivaloled.imagetobits(im)
-    rivaloled.sendframe(frame)
+    rivaloled.sendframe(frame, delay)
 
 
 def main(argv):
     filename = ""
-    delay = 30000
+    timeout = 300000
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hi:d:")
     except getopt.GetoptError as err:
@@ -44,7 +42,7 @@ def main(argv):
         elif opt in "-d":
             d = int(arg)
             if d >= 1500 and d <= 600000:
-                delay = int(arg)
+                timeout = int(arg)
             else:
                 print("delay must be greater than 1500 and less than 600000")
     if not os.path.exists(filename):
@@ -58,20 +56,15 @@ def main(argv):
         if y > MAXY or x > MAXX:
             raise Exception("Image must be 128x36 pixel")
         if not isanimation(im):
-            processandsend(im)
+            processandsend(im, timeout)
         else:
-            count = 1
-            try:
-                seq = []
-                for frame in ImageSequence.Iterator(im):
-                    im = frame.convert('1', dither=0)
-                    part = rivaloled.imagetobits(im)
-                    seq.append(part)
-                frames = numpy.dstack(seq)
-                rivaloled.sendsquenece(frames, delay)
-            except (KeyboardInterrupt, SystemExit):
-                rivaloled.sendblankframe()
-                sys.exit(1)
+            seq = []
+            for frame in ImageSequence.Iterator(im):
+                im = frame.convert('1', dither=0)
+                part = rivaloled.imagetobits(im)
+                seq.append(part)
+            frames = numpy.dstack(seq)
+            rivaloled.sendsquenece(frames, timeout)
     except IOError:
         raise Exception("File: %s is not a valid image." % filename)
 

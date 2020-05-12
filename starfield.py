@@ -14,6 +14,7 @@ import numpy
 MAXX, MAXY = 36, 128
 
 oled = Canvas(numpy.zeros((MAXX, MAXY), dtype=int, order='C'))
+timeout = 60000
 
 #constants
 WINSIZE = [MAXX, MAXY]
@@ -86,7 +87,7 @@ def main():
     while not done:
         draw_stars(stars)
         move_stars(stars)
-        Canvas.drawcanvas(oled)
+        Canvas.drawcanvas(oled, timeout)
         posx, posy = mousepos()
         posx = posx / xratio
         posy = posy / yratio
