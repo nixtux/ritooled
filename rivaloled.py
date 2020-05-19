@@ -1,3 +1,7 @@
+from gi.repository import GLib as glib
+import dbus
+from dbus.mainloop.glib import DBusGMainLoop
+
 import xprintidle
 import threading
 import rivalcfg
@@ -19,34 +23,7 @@ oldframe = []
 screendisabled = False
 timeout = 200000
 shuttingdown = False
-
-
-def screensaver(delay):
-    global screendisabled, timeout, shuttingdown, oldframe
-    timeout = delay
-    while True:
-        if xprintidle.idle_time() < timeout:
-            if screendisabled:
-                screendisabled = False
-                mouse.send_oled_frame(oldframe)
-            screendisabled = False
-        else:
-            sendblankframe(timeout)
-            screendisabled = True
-        if shuttingdown:
-            break
-        time.sleep(2)
-
-
-# Start screensaver thread
-screensaver = threading.Thread(target=screensaver, args=(timeout,))
-screensaver.start()
-
-
-# convert pil image to a binary numpy array
-def imagetobits(im):
-    frame = numpy.asarray(im, dtype=int)
-    return frame
+hibernating = False
 
 
 # flatten array before sending to rivalcfg
@@ -56,6 +33,74 @@ def _bitstobytes_(array):
     return array
 
 
+def writeframe(frame):
+    if hibernating == False:
+        mouse.send_oled_frame(frame)
+
+
+def sendblankframe():
+    writeframe(_bitstobytes_(blankframe))
+
+
+def screensaver(delay):
+    global screendisabled, timeout, shuttingdown, oldframe, hibernating, mouse
+    timeout = delay
+    while True:
+        if xprintidle.idle_time() < timeout:
+            if screendisabled:
+                screendisabled = False
+                writeframe(oldframe)
+            screendisabled = False
+        else:
+            sendblankframe()
+            screendisabled = True
+        if shuttingdown:
+            sendblankframe()
+            break
+        time.sleep(2)
+
+
+def hibernate_callback(sleeping):
+    # Can't check from here dbus is not happy
+    global hibernating, mouse
+    hibernating = sleeping
+    if sleeping:
+        # System going to hibernate or sleep
+        mouse.send_oled_frame(_bitstobytes_(blankframe))
+    else:
+        # System just resumed from hibernate or suspend
+        mouse = None
+        mouse = rivalcfg.get_mouse(VENDOR_ID, PRODUCT_ID)
+
+def hibernate():
+    glib.MainLoop().run()
+
+
+# Check dbus for hibernate calls
+DBusGMainLoop(set_as_default=True)
+bus = dbus.SystemBus()
+bus.add_signal_receiver(
+    hibernate_callback,
+    'PrepareForSleep',
+    'org.freedesktop.login1.Manager',
+    'org.freedesktop.login1'
+)
+
+
+# Start screensaver thread
+screensaver = threading.Thread(target=screensaver, args=(timeout,))
+screensaver.start()
+
+hibernate = threading.Thread(target=hibernate, args=())
+hibernate.start()
+
+
+# convert pil image to a binary numpy array
+def imagetobits(im):
+    frame = numpy.asarray(im, dtype=int)
+    return frame
+
+
 # sendframe(numpy array of (36x128), delay for screensaver in milliseconds)
 def sendframe(frame, delay):
     global oldframe, timeout
@@ -63,7 +108,7 @@ def sendframe(frame, delay):
     if not numpy.array_equal(frame, oldframe):
         if not screendisabled:
             frame = _bitstobytes_(frame)
-            mouse.send_oled_frame(frame)
+            writeframe(frame)
             if not numpy.array_equal(frame, _bitstobytes_(blankframe)):
                 oldframe = frame
 
@@ -81,14 +126,8 @@ def sendsquenece(frames, delay):
             except (KeyboardInterrupt, SystemExit):
                 print(" ---- Ctrl+c Detected Closing Down Please Wait.")
                 shuttingdown = True
-                sendblankframe(delay)
+                sendblankframe()
                 sys.exit(1)
-
-
-# sendblankframe(delay for screensaver in milliseconds)
-def sendblankframe(delay):
-    global timeout
-    sendframe(blankframe, timeout)
 
 
 def main(frame):

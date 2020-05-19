@@ -31,7 +31,6 @@ def imagetoarray(filename):
     filename="cpu.png"
     im = Image.open(filename, "r")
     array = rivaloled.imagetobits(im)
-    print(array.shape)
     return array
     
 
@@ -39,9 +38,9 @@ def stitcharray(a, b, axis):
     return numpy.concatenate((a, b), axis=axis, out=None)
 
 
-def growarray(arr, xsize, ysize):
+def padarray(arr, xsize, ysize):
     x, y = arr.shape
-    print("grow array", x, y, xsize, ysize)
+    #print("grow array", x, y, xsize, ysize)
     ypadt = 0
     ypadb = 0
     xpadt = 0
@@ -71,13 +70,14 @@ def growarray(arr, xsize, ysize):
 
 
 def texttoarray(argv, fontsize):
+    print("argv", argv)
     for c in argv:
         arr = char_to_pixels(
             c, 
             #path='/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf', 
             #path='/home/nixtux/.local/share/fonts/adip1.ttf', 
             path='/home/nixtux/.local/share/fonts/YummyCupcakes.ttf', 
-            fontsize=38)
+            fontsize=fontsize)
     return arr
 
 
@@ -103,26 +103,32 @@ def showmessage(array):
         rivaloled.sendsquenece(frames, timeout)
 
 
+def texttooled(text, fontsize):
+    message = texttoarray(text, fontsize)
+    x, y = message.shape
+    if y > 128:
+        message = padarray(message, 36, y)
+    else:
+        message = padarray(message, 36, 128)
+    showmessage(message)
+
+
+
 def main(argv):
     icon = imagetoarray("hdehe")
     x, y = icon.shape
-    icon = growarray(icon, 36, y)
-    print("icon size", icon.shape)
+    icon = padarray(icon, 36, y)
     message = texttoarray(argv, 38)
     x, y = message.shape
-    print("message size before grow ", x, y)
-    message = growarray(message, 36, y)
+    message = padarray(message, 36, y)
     x, y = message.shape
-    print("message size after grow ", x, y)
     message = stitcharray(icon, message, 1)
     x, y = message.shape
-    print("message size after stich ", x, y)
     x, y = message.shape
     if y > 128:
-        message = growarray(message, 36, y)
+        message = padarray(message, 36, y)
     else:
-        print("short")
-        message = growarray(message, 36, 128)
+        message = padarray(message, 36, 128)
     x, y = message.shape
     showmessage(message)
 
