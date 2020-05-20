@@ -15,11 +15,12 @@ VENDOR_ID = 0x1038
 PRODUCT_ID = 0x1700
 mouse = rivalcfg.get_mouse(VENDOR_ID, PRODUCT_ID)
 
-# Set Old Screen Dims
+# Set Oled Screen Dims
 MAXX, MAXY = 36, 128
 blankframe = numpy.zeros((MAXX, MAXY), dtype=int, order='C')
 oldframes = numpy.zeros((MAXX, MAXY, 2), dtype=int, order='C')
 oldframe = []
+
 screendisabled = False
 timeout = 200000
 shuttingdown = False
@@ -61,7 +62,6 @@ def screensaver(delay):
 
 
 def hibernate_callback(sleeping):
-    # Can't check from here dbus is not happy
     global hibernating, mouse
     hibernating = sleeping
     if sleeping:

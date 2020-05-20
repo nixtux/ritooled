@@ -40,13 +40,13 @@ def stitcharray(a, b, axis):
 
 def padarray(arr, xsize, ysize):
     x, y = arr.shape
-    #print("grow array", x, y, xsize, ysize)
+    print("grow array", x, y, xsize, ysize)
     ypadt = 0
     ypadb = 0
     xpadt = 0
     xpadb = 0
     if y < ysize:
-        ypad = (MAXY-y)/2
+        ypad = (ysize-y)/2
         print("y, ysize ",y, ysize)
 
         if (ypad % 2) == 0:
@@ -57,7 +57,7 @@ def padarray(arr, xsize, ysize):
             ypadb = int(ypad - 0.5)
     if x < xsize:
         print("x, xsize ",x, xsize)
-        xpad = (MAXX-x)/2
+        xpad = (xsize-x)/2
         if (xpad % 2) == 0:
             xpadt = int(xpad)
             xpadb = int(xpad)
@@ -83,6 +83,7 @@ def texttoarray(argv, fontsize):
 
 def showmessage(array):
     x, y = array.shape
+    print(array.shape)
     if y == 128:
         rivaloled.sendframe(array, timeout)
     else:
